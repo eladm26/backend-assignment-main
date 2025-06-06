@@ -17,7 +17,9 @@ interface ApiStreet {
     street_name: string
     street_name_status: string
     official_code: number
-}
+};
+
+type CityResult = { city: city, streets: Pick<Street, 'streetId' | 'street_name'>[] };
 
 class NoStreetsError extends Error {};
 class InvalidCityNameError extends Error {};
@@ -30,38 +32,64 @@ export class StreetsService {
         }
         return this._axios
     }
-    static async getStreetsInCity(city: city): Promise<{ city: city, streets: Pick<Street, 'streetId' | 'street_name'>[] }> {
+    static async getStreetsInCity(city: city, limit: number = 100000, offset: number = 0): Promise<{ city: city, streets: Pick<Street, 'streetId' | 'street_name'>[] }> {
         const cityName = cities[city];
         if (!cityName) {
             console.log(`${city} is not a valid city`);
             throw new InvalidCityNameError(`${city} is not a valid city`)
         }
 
-        const res = (await this.axios.post('https://data.gov.il/api/3/action/datastore_search', { resource_id: `1b14e41c-85b3-4c21-bdce-9fe48185ffca`, filters: { city_name:  cityName}, limit: 100000 })).data
+        const res = (await this.axios.post(
+            'https://data.gov.il/api/3/action/datastore_search',
+            {
+                resource_id: `1b14e41c-85b3-4c21-bdce-9fe48185ffca`,
+                filters: { city_name:  cityName},
+                limit,
+                offset,
+
+            })).data;
+
         const results = res.result.records
         if (!results || !results.length) {
             console.log('No streets found for city: ' + city);
-            throw new NoStreetsError('No streets found for city: ' + city);
+            return { city, streets: []}
         }
         const streets: Pick<Street, 'streetId' | 'street_name'>[] = results.map((street: ApiStreet) => {
             console.log(`${city}: ${street.street_name.trim()}`);
-            return { streetId: street._id, name: street.street_name.trim() }
+            return { streetId: street._id, street_name: street.street_name.trim() }
         })
 
         return { city, streets }
     }
 
-    static async getStreetsForMultipleCities(cities: city[]): Promise<{ city: city, streets: Pick<Street, 'streetId' | 'street_name'>[] }[]> {
-        const cityPromises = cities.map(async (city) =>  {
+    static async getStreetsForMultipleCities(cities: city[]): Promise<CityResult[]> {
+        const BATCH_SIZE = 100;
+
+        const cityPromises = cities.map(async (cityName): Promise<CityResult> =>  {
+            const allStreetsForCity: Pick<Street, 'streetId' | 'street_name'>[] = [];
+            let offset = 0;
+            let hasMoreCities = true;
+
             try {
-                const res = await this.getStreetsInCity(city)
-                return res
+                while (hasMoreCities) {
+                    console.log(`Fetching batch for ${cityName} (offset: ${offset}, limit: ${BATCH_SIZE})`);
+                    const res = await this.getStreetsInCity(cityName, BATCH_SIZE, offset);
+
+                    if (res.streets.length === 0) {
+                        hasMoreCities = false;
+                    } else {
+                        allStreetsForCity.push(...res.streets);
+                        offset += BATCH_SIZE;
+                    }
+                }
+
+                return {city: cityName, streets: allStreetsForCity}
             } catch (error) {
-                return undefined
+                return {city: cityName, streets: []}
             }
         })
 
-        const allCitiesStreets = (await Promise.all(cityPromises)).filter(res => !!res)
+        const allCitiesStreets = (await Promise.all(cityPromises)).filter(res => res.streets.length > 0);
 
         return allCitiesStreets
     }
