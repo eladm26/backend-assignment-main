@@ -19,6 +19,8 @@ interface ApiStreet {
     official_code: number
 }
 
+class NoStreetsError extends Error {};
+class InvalidCityNameError extends Error {};
 
 export class StreetsService {
     private static _axios: Axios
@@ -29,15 +31,39 @@ export class StreetsService {
         return this._axios
     }
     static async getStreetsInCity(city: city): Promise<{ city: city, streets: Pick<Street, 'streetId' | 'street_name'>[] }> {
-        const res = (await this.axios.post('https://data.gov.il/api/3/action/datastore_search', { resource_id: `1b14e41c-85b3-4c21-bdce-9fe48185ffca`, filters: { city_name: cities[city] }, limit: 100000 })).data
+        const cityName = cities[city];
+        if (!cityName) {
+            console.log(`${city} is not a valid city`);
+            throw new InvalidCityNameError(`${city} is not a valid city`)
+        }
+
+        const res = (await this.axios.post('https://data.gov.il/api/3/action/datastore_search', { resource_id: `1b14e41c-85b3-4c21-bdce-9fe48185ffca`, filters: { city_name:  cityName}, limit: 100000 })).data
         const results = res.result.records
         if (!results || !results.length) {
-            throw new Error('No streets found for city: ' + city)
+            console.log('No streets found for city: ' + city);
+            throw new NoStreetsError('No streets found for city: ' + city);
         }
         const streets: Pick<Street, 'streetId' | 'street_name'>[] = results.map((street: ApiStreet) => {
+            console.log(`${city}: ${street.street_name.trim()}`);
             return { streetId: street._id, name: street.street_name.trim() }
         })
+
         return { city, streets }
+    }
+
+    static async getStreetsForMultipleCities(cities: city[]): Promise<{ city: city, streets: Pick<Street, 'streetId' | 'street_name'>[] }[]> {
+        const cityPromises = cities.map(async (city) =>  {
+            try {
+                const res = await this.getStreetsInCity(city)
+                return res
+            } catch (error) {
+                return undefined
+            }
+        })
+
+        const allCitiesStreets = (await Promise.all(cityPromises)).filter(res => !!res)
+
+        return allCitiesStreets
     }
 
     static async getStreetInfoById(id: number) {

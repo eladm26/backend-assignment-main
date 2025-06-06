@@ -1,19 +1,20 @@
 #! /usr/bin/env node
 
+import type { city } from "./israelistreets/cities"
 import { StreetsService } from "./israelistreets/StreetsService"
 import { PostgresService } from "./postgresService/postgres"
 import { RabbitmqService } from "./rabbitService/rmq"
 
-const main = async (city) => {
-    console.log('Starting!')
+const main = async (cities: city[]) => {
     await PostgresService.init()
     const rabbitmq = await RabbitmqService.init()
-    const streetInfo = await StreetsService.getStreetsInCity(city)
-    await Promise.all(streetInfo.streets.map(async (street) => {
+    const allCitiesStreetsData = await StreetsService.getStreetsForMultipleCities(cities)
+    const allStreets = allCitiesStreetsData.flatMap(cityData => cityData.streets)
+    await Promise.all(allStreets.map(async (street) => {
         await rabbitmq.publish( {streetId: street.streetId})
     }))
-    console.log('Done!!')
+    console.log('Done!!!!!')
     process.exit(0)
 }
-const requestedCity = process.argv[2]
-main(requestedCity)
+const requestedCities = process.argv.slice(2)
+main(requestedCities as city[])

@@ -9,6 +9,8 @@ export async function consume() {
     await rabbitmq.subscribe(Config.rabbitMq.queueConfig.queue, async (message) => {
         const streetData = JSON.parse(message.content.toString())
         const street = await StreetsService.getStreetInfoById(streetData.streetId)
+        console.log(`${street.city_name}: ${street.street_name}`);
+        
         const streetValues = [
             street.streetId,
             street.region_code,
