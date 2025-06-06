@@ -21,7 +21,7 @@ export class PostgresService{
     )
     await pool.connect()
     await pool.query(`Create table if not exists ${Config.postgres.dbConfig.streetsTableName}(
-      streed_id INT,
+      streed_id INT PRIMARY KEY,
       region_code INT,
       region_name TEXT,
       city_code INT,

@@ -10,7 +10,7 @@ export async function consume() {
         const streetData = JSON.parse(message.content.toString())
         const street = await StreetsService.getStreetInfoById(streetData.streetId)
         console.log(`${street.city_name}: ${street.street_name}`);
-        
+
         const streetValues = [
             street.streetId,
             street.region_code,
@@ -22,8 +22,19 @@ export async function consume() {
             street.street_name_status,
             street.official_code
         ]
-        await pgService.query(`Insert into ${Config.postgres.dbConfig.streetsTableName}
-            values($1, $2, $3, $4, $5, $6, $7, $8, $9)`, streetValues)
+        await pgService.query(
+            `Insert into ${Config.postgres.dbConfig.streetsTableName}
+            values($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (streed_id)
+            DO UPDATE SET
+                streed_id = EXCLUDED.streed_id,
+                region_code = EXCLUDED.region_code,
+                region_name = EXCLUDED.region_name,
+                city_name = EXCLUDED.city_name,
+                street_name = EXCLUDED.street_name,
+                street_name_status = EXCLUDED.street_name_status,
+                official_code = EXCLUDED.official_code`, streetValues
+            )
     })
 }
 consume()
