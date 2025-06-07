@@ -43,8 +43,21 @@ export class RabbitmqService {
             if (!message){
                 throw new Error('Recieved null message')
             }
-            await callback(message)
-            this._channel.ack(message)
+            try {
+                await callback(message)
+                this._channel.ack(message)
+            } catch (error) {
+                this._channel.nack(message, false, true)
+            }
         })
+    }
+
+     public nack(message: amqplib.ConsumeMessage, allUpTo: boolean = false, requeue: boolean = true): void {
+        this._channel.nack(message, allUpTo, requeue);
+        if (requeue) {
+            console.log(`Message nacked and re-queued: ${message.fields.deliveryTag}`);
+        } else {
+            console.log(`Message nacked (discarded/dead-lettered): ${message.fields.deliveryTag}`);
+        }
     }
 }
