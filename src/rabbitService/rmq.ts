@@ -45,9 +45,9 @@ export class RabbitmqService {
             }
             try {
                 await callback(message)
-                this._channel.ack(message)
+                this._channel.ack(message);
             } catch (error) {
-                this._channel.nack(message, false, true)
+                this._channel.nack(message, false, true);
             }
         })
     }

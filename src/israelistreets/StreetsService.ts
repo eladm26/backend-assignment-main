@@ -62,10 +62,13 @@ export class StreetsService {
         return { city, streets }
     }
 
-    static async getStreetsForMultipleCities(cities: city[]): Promise<CityResult[]> {
+    static async getStreetsForMultipleCities(
+        cities: city[],
+        handler: (streets: Pick<Street, "streetId" | "street_name">[]) => Promise<void>
+    ) {
         const BATCH_SIZE = 100;
 
-        const cityPromises = cities.map(async (cityName): Promise<CityResult> =>  {
+        const cityPromises = cities.map(async (cityName): Promise<void> =>  {
             const allStreetsForCity: Pick<Street, 'streetId' | 'street_name'>[] = [];
             let offset = 0;
             let hasMoreCities = true;
@@ -78,20 +81,18 @@ export class StreetsService {
                     if (res.streets.length === 0) {
                         hasMoreCities = false;
                     } else {
-                        allStreetsForCity.push(...res.streets);
+                        await handler(res.streets);
                         offset += BATCH_SIZE;
                     }
                 }
 
-                return {city: cityName, streets: allStreetsForCity}
             } catch (error) {
-                return {city: cityName, streets: []}
+                console.log('got error in getStreetsForMultipleCities');
+
             }
         })
 
-        const allCitiesStreets = (await Promise.all(cityPromises)).filter(res => res.streets.length > 0);
-
-        return allCitiesStreets
+        await Promise.all(cityPromises);
     }
 
     static async getStreetInfoById(id: number) {

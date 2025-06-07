@@ -88,7 +88,7 @@ export async function consume() {
                 }
             }
         }
-        await sleep(500);
+        await sleep(5000);
     })
 }
 consume()
