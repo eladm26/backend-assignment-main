@@ -4,7 +4,8 @@ import { Street, StreetsService } from "./israelistreets/StreetsService"
 import { PostgresService } from "./postgresService/postgres"
 import { RabbitmqService } from "./rabbitService/rmq"
 
-const BULK_SIZE = 100
+const BULK_SIZE = 100;
+const SLEEP_TIME = 5000;
 
 let streetDataBuffer = [];
 
@@ -98,7 +99,8 @@ export async function consume() {
                 }
             }
         }
-        await sleep(5000);
+        // sleep between rounds to prevent rate limit errors
+        await sleep(SLEEP_TIME);
     })
 }
 consume()
