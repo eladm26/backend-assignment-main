@@ -4,12 +4,15 @@ import { Street, StreetsService } from "./israelistreets/StreetsService"
 import { PostgresService } from "./postgresService/postgres"
 import { RabbitmqService } from "./rabbitService/rmq"
 
+const BULK_SIZE = 100
+
 let streetDataBuffer = [];
 
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Insert to DB in bulks
 async function insertBulk(pgService: PostgresService) {
     if (streetDataBuffer.length === 0) {
         return;
@@ -63,6 +66,7 @@ export async function consume() {
         try {
             console.log(`consuming ids: ${streetIds}`);
 
+            // get streets info by streed ids bulk instead of single street every time to avoid rate limit errors
             const streets: Street[] = await StreetsService.getStreetInfoByIds(streetIds);
             console.log(`got ${streets.length} streets`);
 
@@ -83,7 +87,7 @@ export async function consume() {
             streetDataBuffer.push(streetValues);
         })
 
-            if (streetDataBuffer.length >= 100) {
+            if (streetDataBuffer.length >= BULK_SIZE) {
                 await insertBulk(pgService);
             }
         } catch(error) {

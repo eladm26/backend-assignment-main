@@ -6,16 +6,19 @@ import { PostgresService } from "./postgresService/postgres"
 import { RabbitmqService } from "./rabbitService/rmq"
 
 const main = async (cities: city[]) => {
-    await PostgresService.init()
-    const rabbitmq = await RabbitmqService.init()
+    await PostgresService.init();
+    const rabbitmq = await RabbitmqService.init();
+
+    const streetsHandler = async (streets: Street[]) => {
+        const streetIds = streets.map(street => street.streetId)
+        await rabbitmq.publish(streetIds);
+        console.log(`published ${streetIds}`);
+    }
+
     await StreetsService.getStreetsForMultipleCities(
         cities,
-        async (streets: Street[]) => {
-            const streetIds = streets.map(street => street.streetId)
-                await rabbitmq.publish(streetIds);
-                console.log(`published ${streetIds}`);
-                
-        })
+        streetsHandler
+    )
     console.log('Done!!!!!')
     process.exit(0)
 }

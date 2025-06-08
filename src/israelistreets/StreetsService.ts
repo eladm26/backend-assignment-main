@@ -74,12 +74,14 @@ export class StreetsService {
 
             try {
                 while (hasMoreCities) {
+                    // Fetching city streets in batches/pagination to minimize waiting time
                     console.log(`Fetching batch for ${cityName} (offset: ${offset}, limit: ${BATCH_SIZE})`);
                     const res = await this.getStreetsInCity(cityName, BATCH_SIZE, offset);
 
                     if (res.streets.length === 0) {
                         hasMoreCities = false;
                     } else {
+                        // publish streets on the fly to minimize consumer waiting times.
                         await handler(res.streets);
                         offset += BATCH_SIZE;
                     }
@@ -114,6 +116,7 @@ export class StreetsService {
 
     static async getStreetInfoByIds(ids: number[]): Promise<Street[]> {
         let res: any;
+        // get multiple streets info by streed_id to avoid rate limit
         res = (await this.axios.post(
             'https://data.gov.il/api/3/action/datastore_search',
             { resource_id: `1b14e41c-85b3-4c21-bdce-9fe48185ffca`,
