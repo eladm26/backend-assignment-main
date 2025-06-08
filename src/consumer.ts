@@ -1,6 +1,6 @@
 import { AxiosError, HttpStatusCode } from "axios";
 import { Config } from "./config"
-import { StreetsService } from "./israelistreets/StreetsService"
+import { Street, StreetsService } from "./israelistreets/StreetsService"
 import { PostgresService } from "./postgresService/postgres"
 import { RabbitmqService } from "./rabbitService/rmq"
 
@@ -59,9 +59,14 @@ export async function consume() {
     const pgService = await PostgresService.init()
 
     await rabbitmq.subscribe(Config.rabbitMq.queueConfig.queue, async (message) => {
-        const streetData = JSON.parse(message.content.toString())
+        const streetIds: number[] = JSON.parse(message.content.toString())
         try {
-            const street = await StreetsService.getStreetInfoById(streetData.streetId)
+            console.log(`consuming ids: ${streetIds}`);
+
+            const streets: Street[] = await StreetsService.getStreetInfoByIds(streetIds);
+            console.log(`got ${streets.length} streets`);
+
+            streets.map((street: Street) => {
             console.log(`${street.city_name}: ${street.street_name}`);
             const streetValues = [
                 street.streetId,
@@ -76,6 +81,7 @@ export async function consume() {
             ]
 
             streetDataBuffer.push(streetValues);
+        })
 
             if (streetDataBuffer.length >= 100) {
                 await insertBulk(pgService);

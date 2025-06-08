@@ -69,7 +69,6 @@ export class StreetsService {
         const BATCH_SIZE = 100;
 
         const cityPromises = cities.map(async (cityName): Promise<void> =>  {
-            const allStreetsForCity: Pick<Street, 'streetId' | 'street_name'>[] = [];
             let offset = 0;
             let hasMoreCities = true;
 
@@ -111,5 +110,26 @@ export class StreetsService {
         const cityName = englishNameByCity[dbStreet.city_name]
         const street: Street = { ...omit(dbStreet, '_id'), streetId: dbStreet._id, city_name: cityName, region_name: dbStreet.region_name.trim(), street_name: dbStreet.street_name.trim() }
         return street
+    }
+
+    static async getStreetInfoByIds(ids: number[]): Promise<Street[]> {
+        let res: any;
+        res = (await this.axios.post(
+            'https://data.gov.il/api/3/action/datastore_search',
+            { resource_id: `1b14e41c-85b3-4c21-bdce-9fe48185ffca`,
+                filters: { _id: ids },
+                limit: 1000 })).data;
+
+        const results = res.result.records
+        if (!results || !results.length) {
+            throw new Error('No street found for ids: ' + ids)
+        }
+        const dbStreets: ApiStreet[] = results
+        const streets = dbStreets.map(dbStreet => {
+            const cityName = englishNameByCity[dbStreet.city_name]
+            const street: Street = { ...omit(dbStreet, '_id'), streetId: dbStreet._id, city_name: cityName, region_name: dbStreet.region_name.trim(), street_name: dbStreet.street_name.trim() }
+            return street
+        })
+        return streets;
     }
 }

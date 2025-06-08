@@ -11,7 +11,10 @@ const main = async (cities: city[]) => {
     await StreetsService.getStreetsForMultipleCities(
         cities,
         async (streets: Street[]) => {
-            streets.forEach(async street => await rabbitmq.publish(street))
+            const streetIds = streets.map(street => street.streetId)
+                await rabbitmq.publish(streetIds);
+                console.log(`published ${streetIds}`);
+                
         })
     console.log('Done!!!!!')
     process.exit(0)
